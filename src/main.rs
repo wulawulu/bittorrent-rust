@@ -5,21 +5,38 @@ use std::env;
 // use serde_bencode
 
 #[allow(dead_code)]
-fn decode_bencoded_value(encoded_value: &str) -> serde_json::Value {
+fn decode_bencoded_value(encoded_value: &str) -> (serde_json::Value, &str) {
     // If encoded_value starts with a digit, it's a number
-    if let Some(n) = encoded_value
-        .strip_prefix('i')
-        .and_then(|rest| rest.split_once('e'))
-        .and_then(|(digest, _)| digest.parse::<i64>().ok()){
-        n.into()
-    }else if let Some((len,rest))=encoded_value.split_once(':'){
-        if let Ok(len)=len.parse::<usize>(){
-            return serde_json::Value::String(rest[..len].to_string())
+    match encoded_value.chars().next() {
+        Some('i') => {
+            if let Some((n, rest)) =
+                encoded_value
+                    .split_at(1)
+                    .and_then(|(digest, rest)| {
+                        let x = digest.parse::<i64>().ok();
+                        Some((x, rest))
+                    }) {
+                return (n.into(), rest);
+            }
         }
-        panic!("Unhandled encoded value: {}", encoded_value)
-    } else {
-        panic!("Unhandled encoded value: {}", encoded_value)
-    }
+        Some('l') => {
+            let mut values = Vec::new();
+            let mut rest = encoded_value.split_at(1).1;
+            while !rest.is_empty() && rest.starts_with('e') {
+                let (value, remainder) = decode_bencoded_value(rest);
+                values.push(value);
+                rest = remainder;
+            }
+        }
+        Some('0'..='9') => {
+            if let Some((len, rest)) = encoded_value.split_once(':') {
+                if let Ok(len) = len.parse::<usize>() {
+                    return (rest[..len].to_string().into(), rest);
+                }
+            }
+        }
+        _ => {}
+    };
 }
 
 // Usage: your_bittorrent.sh decode "<encoded_value>"
