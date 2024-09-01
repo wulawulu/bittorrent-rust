@@ -87,7 +87,7 @@ struct File {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     match args.commands {
-        Commands::Decode { value } => {
+        Commands::Decode { value: _value } => {
             unimplemented!("serde_bencode -> serde_json::Value is borked")
         }
         Commands::Info { torrent } => {
@@ -102,6 +102,11 @@ fn main() -> anyhow::Result<()> {
             hasher.update(&info_encoded);
             let info_hash = hasher.finalize();
             println!("Info Hash: {}", hex::encode(&info_hash));
+            println!("Piece Length: {}", t.info.plength);
+            println!("Piece Hashes:");
+            for hash in t.info.pieces.0 {
+                println!("{}", hex::encode(&hash));
+            }
         }
     }
     Ok(())
@@ -111,7 +116,7 @@ fn main() -> anyhow::Result<()> {
 mod hashes {
     use serde::de::{self, Visitor, Deserialize, Deserializer};
     use std::fmt::Formatter;
-    use serde::ser::{Serialize, SerializeMap, SerializeSeq, Serializer};
+    use serde::ser::{Serialize, Serializer};
 
     #[derive(Debug, Clone)]
     pub struct Hashes(pub Vec<[u8; 20]>);
